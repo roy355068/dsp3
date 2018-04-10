@@ -13,10 +13,9 @@ import os
 
 def initDirectory():
     # The redis cache and cassandra hosts for the web server
-    hostMap = { "redisHost" : "128.2.100.164",
-                "cassHost": "128.2.100.165",
-                "storeCassHost": "128.2.100.166",
-                "ghc31": "128.2.100.164",
+    hostMap = { "ghc31": "128.2.100.164", # web server
+                "ghc32": "128.2.100.165", # cache server
+                "ghc33": "128.2.100.166", # store server
                 "localhost": "127.0.0.1"
                  }
 
@@ -64,6 +63,8 @@ def initDirectory():
     #     """,
     #     (0, {"127.0.0.1"})
     # )
+
+    # TODO: Here the mids should changed to the production hosts of Store
     session.execute(
         """
         INSERT INTO store (lvid, mid)
