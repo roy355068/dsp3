@@ -10,20 +10,36 @@ import os
 from base64 import *
 from initDirectory import initDirectory
 
+
+"""
+40     : Cache + Store server 8040
+41, 42 : Store Cass 9337
+43     : Redis      6379
+
+
+"""
 initDirectory()
 # ghc31 ip is "128.2.100.164"
 hostMap = {
             "ghc31": "128.2.100.164", # web server
             "ghc32": "128.2.100.165", # cache server
             "ghc33": "128.2.100.166", # store server
+
+            "cacheServer": "128.2.100.173",
+            "cass1": "128.2.100.174",
+            "cass2": "128.2.100.175",
+
+            "ghc51": "128.2.100.184",
             "localhost": "127.0.0.1"
             }
 app = Flask(__name__)
 # app.config['UPLOAD_FOLDER'] = 'uploads/'
 
 # TODO: 目前是以localhost開Cassandra以及Redis做測試
-tempHost = hostMap["localhost"]
-cluster = Cluster([ tempHost ])
+
+# tempHost = hostMap["localhost"]
+tempHost = hostMap["ghc51"]
+cluster = Cluster([ tempHost ], port = 9337)
 dbSession = cluster.connect('directory')
 redisClient = Redis(host = tempHost, port = 6379)
 
@@ -37,11 +53,7 @@ def get_all_photos():
     for row in rows:
         # Get all images back from the backend server
         data = [row.mid, str(row.lvid), row.pid]
-        print(data)
-        url = "http://" + "/".join(data)
-        # url = 'http://0.0.0.0:3000/' + '/'.join([str(b64encode(row.mid.encode("ascii"))),
-        #     str(row.lvid), str(row.pid), str(b64encode(row.mid.encode("ascii")))])
-
+        url = "http://" + hostMap["cacheServer"] + ":8040" + "/" + "/".join(data)
         photo_paths.append(url)
 
     return render_template('index.html', photo_paths= photo_paths)
@@ -53,7 +65,10 @@ def upload():
 @app.route('/photo/', methods=['POST'])
 def post_photo():
 
-    pid = str(random.randint(1, 100000))
+    file = request.files["photo"]
+    pid = str(file.filename.split(".")[0])
+
+    # pid = str(random.randint(1, 100000))
     rows = dbSession.execute('SELECT lvid, mid FROM store')
     # random choose a logical volume
     local_rows = [row for row in rows]
@@ -70,15 +85,12 @@ def post_photo():
         "INSERT INTO photo (pid, mid, lvid) VALUES (%s, %s, %s)", (pid, mid, lvid))
 
     # upload to store machine
-    f = request.files['photo']
-    sendFile = { "file": (f.filename, f.stream, f.mimetype) }
+    # f = request.files['photo']
+    sendFile = { "photo": (file.filename, file.stream, file.mimetype) }
+    data = ["photo", mid, str(lvid), pid]
+    url = "http://" + hostMap["cacheServer"] + ":8040" + "/" + "/".join(data)
 
-    # TODO:
-    # <lvid>/<pid>/<mimetype>/<midbase64>, map to post_photo in backend server
-    # url = 'http://' + '/'.join(["0.0.0.0" + ":3000", str(lvid), str(pid), f.mimetype.split('/')[1], str(b64encode(mid.encode("ascii")))])
-    # print(url)
-    # rsp = requests.post(url, files=sendFile)
-    # return redirect(url_for("get_all_photos"))
+    rsp = requests.post(url, files=sendFile)
     return redirect(url_for('get_photo', pid=pid))
 
 @app.route('/photo/<pid>')
@@ -105,7 +117,9 @@ def get_photo(pid):
         #     str(row.lvid), str(row.pid), str(b64encode(row.mid.encode("ascii")))])
 
         data = [row.mid, str(row.lvid), row.pid]
-        url = "http://" + "/".join(data)
+        url = "http://" + hostMap["cacheServer"] + ":8040" + "/" + "/".join(data)
+        # data = [row.mid, str(row.lvid), row.pid]
+        # url = "http://" + "/".join(data)
         redisClient.setex(pid, url, 120)
     else:
         url = url.decode("utf-8")

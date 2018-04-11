@@ -16,19 +16,27 @@ def initDirectory():
     hostMap = { "ghc31": "128.2.100.164", # web server
                 "ghc32": "128.2.100.165", # cache server
                 "ghc33": "128.2.100.166", # store server
+
+                "ghc51": "128.2.100.184", # directory cassandra and redis
+
+                "cacheServer": "128.2.100.173",
+                "cass1": "128.2.100.174",
+                "cass2": "128.2.100.175",
+
                 "localhost": "127.0.0.1"
                  }
 
     app = Flask(__name__)
     # cluster = Cluster([hostMap["cassHost"]])
-    tempHost = hostMap["localhost"]
-    cluster = Cluster([ tempHost ])
+    # tempHost = hostMap["localhost"]
+    tempHost = hostMap["ghc51"]
+    cluster = Cluster([ tempHost ], port = 9337)
     session = cluster.connect()
     # Create the directory keyspace
 
     # rows = session.execute("SELECT keyspace_name FROM system.schema_keyspaces")
     # if "directory" in [row[0] for row in rows]:
-    session.execute("DROP KEYSPACE IF EXISTS directory")
+    # session.execute("DROP KEYSPACE IF EXISTS directory")
 
     session.execute(
         """
@@ -45,6 +53,8 @@ def initDirectory():
     # Create the users table
     # This creates a users table with columns: logical volume id (int) and
     # the corresponding machine ids (set of int)
+
+
     session.execute(
         """
         CREATE TABLE IF NOT EXISTS store (
@@ -70,16 +80,18 @@ def initDirectory():
         INSERT INTO store (lvid, mid)
         VALUES (%s, %s)
         """,
-        (0, {"128.2.100.166", "128.2.100.167"})
+        # (0, {"128.2.100.166", "128.2.100.167"})
+        (0, {hostMap["cass1"], hostMap["cass2"]})
     )
 
-    session.execute(
-        """
-        INSERT INTO store (lvid, mid)
-        VALUES (%s, %s)
-        """,
-        (1, {"128.2.100.166", "128.2.100.167"})
-    )
+    # session.execute(
+    #     """
+    #     INSERT INTO store (lvid, mid)
+    #     VALUES (%s, %s)
+    #     """,
+    #     # (1, {"128.2.100.166", "128.2.100.167"})
+    #     (0, {hostMap["cacheServer"]})
+    # )
 
     session.execute(
         """
