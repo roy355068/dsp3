@@ -12,9 +12,10 @@ from initDirectory import initDirectory
 """
 initDirectory()
 hostMap = {
-            "ghc31": "128.2.100.164", # web server
-            "ghc32": "128.2.100.165", # cache server
-            "ghc33": "128.2.100.166", # store server
+            "dir1": "128.2.100.164", # web server
+            "dir2": "128.2.100.165", # cache server
+            "dirRedis": "128.2.100.166", # store server
+
             "cacheServer": "128.2.100.173",
             "cass1": "128.2.100.174",
             "cass2": "128.2.100.175",
@@ -23,8 +24,9 @@ hostMap = {
             }
 app = Flask(__name__)
 # app.config['UPLOAD_FOLDER'] = 'uploads/'
-tempHost = hostMap["ghc51"]
-cluster = Cluster([ tempHost ], port = 9337)
+cassDirectory = [ hostMap["dir1"], hostMap["dir2"] ]
+redisHost = hostMap["dirRedis"]
+cluster = Cluster(cassDirectory, port = 9337)
 dbSession = cluster.connect('directory')
 redisClient = Redis(host = tempHost, port = 6379)
 
@@ -52,13 +54,10 @@ def post_photo():
 
     file = request.files["photo"]
     pid = str(file.filename.split(".")[0])
-
-    # pid = str(random.randint(1, 100000))
     rows = dbSession.execute('SELECT lvid, mid FROM store')
     # random choose a logical volume
     local_rows = [row for row in rows]
     row = random.choice(local_rows)
-
     lvid = row.lvid
     # random choose a store machine of selected logical volume
     # TODO: Should write to every machine mapped to the same logical volume
@@ -80,7 +79,6 @@ def post_photo():
 @app.route('/photo/<pid>')
 def get_photo(pid):
     url = redisClient.get(pid) # try to get from redis first
-
     # if cache missed
     if not url:
         print('\ncache missed for pid ' + pid)

@@ -10,9 +10,10 @@ import io
 from initStore import initStore
 
 app = Flask(__name__)
-    
+
 @app.route('/photo/<mid>/<lvid>/<pid>', methods = ["POST"])
 def post_photo(mid, lvid, pid):
+
     if request.method == "POST":
         print(mid, lvid, pid)
         tempImage = request.files['photo']
@@ -32,34 +33,21 @@ def post_photo(mid, lvid, pid):
             """,
             (pid, mimetype, imagestr.decode("utf-8"))
         )
+
     return '', 200
-    
-'''
-@app.route('/<mid>/<lvid>/<pid>/<filetype>', methods=['POST'])
-def post_photo(mid, lvid, pid, filetype):
-    image = request.files['file'].stream.read()
-    cluster = Cluster(["128.2.100.174"], port = 9337)
-    db_session = cluster.connect('photostore')
-    mimetype = 'image/' + filetype
-    db_session.execute(
-        """
-        INSERT INTO photo (pid, mimetype, payload)
-        VALUES (%s, %s, %s)
-        """,
-        (pid, mimetype, base64.b64encode(image))
-    )
-    return '', 200
-'''
 
 @app.route('/<mid>/<lvid>/<pid>')
 def get_photo(mid, lvid, pid):
+
     with open('tmp.jpg','wb') as image:
         # try to get from redis first
         print("This is from get_photo pid = %s" %pid)
         redis_client = StrictRedis(host='128.2.100.176', port = 6379)
         result = redis_client.get(pid)
+
         if not result: # cache miss
             print('cache missed for pid ' + pid)
+
         else:
             print("Cache hit for %s!!!" % pid)
             image.write(base64.decodebytes(result))
@@ -80,11 +68,12 @@ def get_photo(mid, lvid, pid):
             log.exception("Query error")
         print("This is from Cassandra!!!\n")
         value = {'payload' : result[0].payload, 'mimetype' : result[0].mimetype}
-    tempImage = open("tmp.jpg", "rb")    
+
+    tempImage = open("tmp.jpg", "rb")
     #tempImage = open(result[0].pid + "."+ result[0].mimetype.split('/')[1].replace('e',''), 'rb')
     imagestr = base64.b64encode(tempImage.read())
     redis_client.setex(result[0].pid, 20, imagestr)
-        
+
     return send_file('tmp.jpg', mimetype=value['mimetype'])
 
 if __name__ == '__main__':
