@@ -1,43 +1,28 @@
 from flask import Flask, render_template, request, url_for, redirect, abort
 from cassandra.cluster import Cluster
-from cassandra.util import uuid_from_time
 from redis import Redis
-import time
 import requests
-import logging
 import random
-import os
-from base64 import *
 from initDirectory import initDirectory
 
-
-"""
+""" Temporary host mapping
 40     : Cache + Store server 8040
 41, 42 : Store Cass 9337
 43     : Redis      6379
-
-
 """
 initDirectory()
-# ghc31 ip is "128.2.100.164"
 hostMap = {
             "ghc31": "128.2.100.164", # web server
             "ghc32": "128.2.100.165", # cache server
             "ghc33": "128.2.100.166", # store server
-
             "cacheServer": "128.2.100.173",
             "cass1": "128.2.100.174",
             "cass2": "128.2.100.175",
-
             "ghc51": "128.2.100.184",
             "localhost": "127.0.0.1"
             }
 app = Flask(__name__)
 # app.config['UPLOAD_FOLDER'] = 'uploads/'
-
-# TODO: 目前是以localhost開Cassandra以及Redis做測試
-
-# tempHost = hostMap["localhost"]
 tempHost = hostMap["ghc51"]
 cluster = Cluster([ tempHost ], port = 9337)
 dbSession = cluster.connect('directory')
@@ -85,7 +70,6 @@ def post_photo():
         "INSERT INTO photo (pid, mid, lvid) VALUES (%s, %s, %s)", (pid, mid, lvid))
 
     # upload to store machine
-    # f = request.files['photo']
     sendFile = { "photo": (file.filename, file.stream, file.mimetype) }
     data = ["photo", mid, str(lvid), pid]
     url = "http://" + hostMap["cacheServer"] + ":8040" + "/" + "/".join(data)
@@ -96,7 +80,8 @@ def post_photo():
 @app.route('/photo/<pid>')
 def get_photo(pid):
     url = redisClient.get(pid) # try to get from redis first
-    # if url is None: # cache miss
+
+    # if cache missed
     if not url:
         print('\ncache missed for pid ' + pid)
         prepare = dbSession.prepare("SELECT * FROM photo WHERE pid=?")
@@ -107,19 +92,12 @@ def get_photo(pid):
         except:
             print("\nexecute errrrrrr")
 
-        # if row is None:
         if not row:
             print('\nnot found in directory')
             abort(404)
 
-        # TODO: The hostname in local test is 0.0.0.0:3000. Need to change to cache server
-        # url = 'http://0.0.0.0:3000/' + '/'.join([str(b64encode(row.mid.encode("ascii"))),
-        #     str(row.lvid), str(row.pid), str(b64encode(row.mid.encode("ascii")))])
-
         data = [row.mid, str(row.lvid), row.pid]
         url = "http://" + hostMap["cacheServer"] + ":8040" + "/" + "/".join(data)
-        # data = [row.mid, str(row.lvid), row.pid]
-        # url = "http://" + "/".join(data)
         redisClient.setex(pid, url, 120)
     else:
         url = url.decode("utf-8")
@@ -128,4 +106,4 @@ def get_photo(pid):
     return render_template('photo.html', photo_path=url)
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0")
+    app.run(host = "0.0.0.0")
