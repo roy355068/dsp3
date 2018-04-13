@@ -15,7 +15,9 @@ hostMap = { # Hosts for Directory
             "cacheServer": "128.2.100.173", # :8040
             "cass1": "128.2.100.174",       # :9337
             "cass2": "128.2.100.175",       # :9337
-            "storeRedis": "128.2.100.176"   # :6379
+            "cass3": "128.2.100.176",       # :9337
+            "cass4": "128.2.100.177",       # :9337
+            "storeRedis": "128.2.100.178"   # :6379
             }
 
 @app.route('/photo/<mid>/<lvid>/<pid>', methods = ["POST"])
@@ -31,9 +33,9 @@ def post_photo(mid, lvid, pid):
         print("The mimetype is :"+ mimetype + "\n")
         image = tempImage.stream.read()
         imagestr = base64.b64encode(image)
-        cluster = Cluster([ hostMap["cass1"], hostMap["cass2"] ], port = 9337)
+        # cluster = Cluster([ hostMap["cass1"], hostMap["cass2"] ], port = 9337)
+        cluster = Cluster([ str(mid) ], port = 9337)
         db_session = cluster.connect('photostore')
-        # mimetype = 'image/' + 'jpeg'
         db_session.execute(
             """
             INSERT INTO photo (pid, mimetype, payload)

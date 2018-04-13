@@ -14,7 +14,9 @@ hostMap = {
             "cacheServer": "128.2.100.173", # :8040
             "cass1": "128.2.100.174",       # :9337
             "cass2": "128.2.100.175",       # :9337
-            "storeRedis": "128.2.100.176"   # :6379
+            "cass3": "128.2.100.176",       # :9337
+            "cass4": "128.2.100.177",       # :9337
+            "storeRedis": "128.2.100.178"   # :6379
             }
 app = Flask(__name__)
 # app.config['UPLOAD_FOLDER'] = 'uploads/'
@@ -33,7 +35,8 @@ def get_all_photos():
 
     for row in rows:
         # Get all images back from the backend server
-        data = [row.mid, str(row.lvid), row.pid]
+        mid = random.choice(row.mid)
+        data = [mid, str(row.lvid), row.pid]
         url = "http://" + hostMap["cacheServer"] + ":8040" + "/" + "/".join(data)
         photo_paths.append(url)
 
@@ -55,31 +58,29 @@ def post_photo():
     lvid = row.lvid
     # random choose a store machine of selected logical volume
     # TODO: Should write to every machine mapped to the same logical volume
-    mid = random.choice(row.mid)
-
-    # insert photo into Directory
-    # When test in local, the mid is localHost nad lvid is 0
-    dbSession.execute(
-        "INSERT INTO photo (pid, mid, lvid) VALUES (%s, %s, %s)", (pid, mid, lvid))
-
-    # upload to Store databases
+    # mid = random.choice(row.mid)
     sendFile = { "photo": (file.filename, file.stream, file.mimetype) }
-    data = ["photo", mid, str(lvid), pid]
-    url = "http://" + hostMap["cacheServer"] + ":8040" + "/" + "/".join(data)
+    midList = set(row.mid)
 
-    # Write to all machines that mapped by lvid
-    # midList = [row.mid for row in rows]
-    # rsp = requests.post(url, files=sendFile, data = { "mids": midList })
+    # insert metadata of photo into Directory
+    dbSession.execute(
+        "INSERT INTO photo (pid, mid, lvid) VALUES (%s, %s, %s)", (pid, midList, lvid))
 
-    rsp = requests.post(url, files=sendFile)
-    return redirect(url_for('get_photo', pid=pid))
+    for mid in midList:
+        # upload to Store databases. Write to all machines that mapped by lvid
+        data = ["photo", mid, str(lvid), pid]
+        url = "http://" + hostMap["cacheServer"] + ":8040" + "/" + "/".join(data)
+        rsp = requests.post(url, files = sendFile)
+
+    return redirect(url_for("get_photo", pid = pid))
 
 @app.route('/photo/<pid>')
 def get_photo(pid):
+
     url = redisClient.get(pid) # try to get image from redis first
-    # if cache missed
-    if not url:
-        print('\ncache missed for pid ' + pid)
+
+    if not url: # if cache missed
+        print("\ncache missed for pid " + pid)
         prepare = dbSession.prepare("SELECT * FROM photo WHERE pid=?")
         row = None
 
@@ -92,14 +93,16 @@ def get_photo(pid):
             print('\nnot found in directory')
             abort(404)
 
-        data = [row.mid, str(row.lvid), row.pid]
+        mid = random.choice(row.mid)
+        # data = [row.mid, str(row.lvid), row.pid]
+        data = [mid, str(row.lvid), row.pid]
         url = "http://" + hostMap["cacheServer"] + ":8040" + "/" + "/".join(data)
         redisClient.setex(pid, url, 120)
     else:
         url = url.decode("utf-8")
-        print('\ncache hit for pid %s' % pid)
+        print("\ncache hit for pid %s" % pid)
 
-    return render_template('photo.html', photo_path=url)
+    return render_template("photo.html", photo_path = url)
 
 if __name__ == "__main__":
     app.run(host = "0.0.0.0")

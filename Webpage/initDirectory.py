@@ -14,10 +14,12 @@ def initDirectory():
                 "ghc32": "128.2.100.165", # cache server
                 "ghc33": "128.2.100.166", # store server
                 "ghc51": "128.2.100.184", # directory cassandra and redis
+
                 "cacheServer": "128.2.100.173",
-                "cass1": "128.2.100.174",
-                "cass2": "128.2.100.175",
-                "localhost": "127.0.0.1"
+                "cass1": "128.2.100.174",       # :9337
+                "cass2": "128.2.100.175",       # :9337
+                "cass3": "128.2.100.176",       # :9337
+                "cass4": "128.2.100.177",       # :9337
                  }
 
     app = Flask(__name__)
@@ -59,7 +61,29 @@ def initDirectory():
         INSERT INTO store (lvid, mid)
         VALUES (%s, %s)
         """,
-        (0, {hostMap["cass1"], hostMap["cass2"]})
+        (0, { hostMap["cass1"], hostMap["cass2"], hostMap["cass3"] })
+    )
+
+    session.execute(
+        """
+        INSERT INTO store (lvid, mid)
+        VALUES (%s, %s)
+        """,
+        (1, { hostMap["cass2"], hostMap["cass3"], hostMap["cass4"] })
+    )
+    session.execute(
+        """
+        INSERT INTO store (lvid, mid)
+        VALUES (%s, %s)
+        """,
+        (2, { hostMap["cass1"], hostMap["cass2"], hostMap["cass4"] })
+    )
+    session.execute(
+        """
+        INSERT INTO store (lvid, mid)
+        VALUES (%s, %s)
+        """,
+        (3, { hostMap["cass1"], hostMap["cass3"], hostMap["cass4"] })
     )
 
     # session.execute(
@@ -75,7 +99,7 @@ def initDirectory():
         """
         CREATE TABLE IF NOT EXISTS photo (
             pid varchar primary key,
-            mid varchar,
+            mid set<varchar>,
             lvid int
         );
         """
