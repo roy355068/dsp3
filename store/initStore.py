@@ -16,8 +16,10 @@ def initStore():
 
     # initialize cassandra
     cluster1 = Cluster(['128.2.100.174'],port=9337)
+    #cluster2 = Cluster(['128.2.100.178'],port=9337)
     #cluster2 = Cluster(['172.20.0.7'])
     db_session1 = cluster1.connect()
+    #db_session2 = cluster2.connect()
     
     # db_session1.execute("DROP KEYSPACE IF EXISTS photostore")
     
@@ -29,7 +31,17 @@ def initStore():
 	}
 	"""
     )
+    #db_session2.execute(
+    #    """
+    #    CREATE KEYSPACE IF NOT EXISTS photostore WITH REPLICATION = {
+    #            'class': 'SimpleStrategy',
+    #            'replication_factor': 1
+    #    }
+    #    """
+    #)
+
     db_session1.set_keyspace('photostore')
+    #db_session2.set_keyspace('photostore')
     #db_session2 = cluster2.connect('photostore')
     
     db_session1.execute(
@@ -42,6 +54,16 @@ def initStore():
 	"""
     )
 
+    #db_session2.execute(
+    #    """
+    #    CREATE TABLE IF NOT EXISTS photo (
+    #        pid text primary key,
+    #        mimetype text,
+    #        payload text
+    #    )
+    #    """
+    #)
+
     image = open('losangeles.jpg', 'rb')
     imagestr = base64.b64encode(image.read())
 
@@ -53,11 +75,11 @@ def initStore():
         ('losangeles', 'image/jpeg', imagestr.decode("utf-8"))
     )
 '''
-    db_session1.execute(
+    db_session2.execute(
         """
         INSERT INTO photo (pid, mimetype, payload)
         VALUES (%s, %s,  %s)
         """,
-        (str_uuid, 'image/jpeg', base64.b64encode(input))
+        ('losangeles', 'image/jpeg', imagestr.decode("utf-8"))
     )
 '''
