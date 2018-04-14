@@ -10,21 +10,23 @@ import random
 
 def initDirectory():
     # The redis cache and cassandra hosts for the web server
-    hostMap = { "ghc31": "128.2.100.164", # web server
-                "ghc32": "128.2.100.165", # cache server
-                "ghc33": "128.2.100.166", # store server
+    hostMap = { "dir1": "128.2.100.164", # web server
+                "dir2": "128.2.100.165", # cache server
+                "dirRedis": "128.2.100.166", # store server
                 "ghc51": "128.2.100.184", # directory cassandra and redis
 
                 "cacheServer": "128.2.100.173",
-                "cass1": "128.2.100.174",       # :9337
-                "cass2": "128.2.100.175",       # :9337
-                "cass3": "128.2.100.176",       # :9337
-                "cass4": "128.2.100.177",       # :9337
+                "cass1": "128.2.100.174",       # :9337 41
+                "cass2": "128.2.100.175",       # :9337 42
+                "cass3": "128.2.100.176",       # :9337 43
+                "cass4": "128.2.100.177",       # :9337 44
+
+                "tempCass": "128.2.100.178"
                  }
 
     app = Flask(__name__)
-    tempHost = hostMap["ghc51"]
-    cluster = Cluster([ tempHost ], port = 9337)
+    cassHosts = [hostMap["dir1"], hostMap["dir2"]]
+    cluster = Cluster(cassHosts, port = 9337)
     session = cluster.connect()
     # Create the directory keyspace
     # session.execute("DROP KEYSPACE IF EXISTS directory")
@@ -52,48 +54,6 @@ def initDirectory():
         );
         """
     )
-    # Set the logical mapping to the machine (physical volumes)
-    # If store a photo on a logical volume, Haystack should write to all corresponding
-    # physical volumns on different machines.
-    # TODO: Here the mids should changed to the production hosts of Store
-    session.execute(
-        """
-        INSERT INTO store (lvid, mid)
-        VALUES (%s, %s)
-        """,
-        (0, { hostMap["cass1"], hostMap["cass2"], hostMap["cass3"] })
-    )
-
-    session.execute(
-        """
-        INSERT INTO store (lvid, mid)
-        VALUES (%s, %s)
-        """,
-        (1, { hostMap["cass2"], hostMap["cass3"], hostMap["cass4"] })
-    )
-    session.execute(
-        """
-        INSERT INTO store (lvid, mid)
-        VALUES (%s, %s)
-        """,
-        (2, { hostMap["cass1"], hostMap["cass2"], hostMap["cass4"] })
-    )
-    session.execute(
-        """
-        INSERT INTO store (lvid, mid)
-        VALUES (%s, %s)
-        """,
-        (3, { hostMap["cass1"], hostMap["cass3"], hostMap["cass4"] })
-    )
-
-    # session.execute(
-    #     """
-    #     INSERT INTO store (lvid, mid)
-    #     VALUES (%s, %s)
-    #     """,
-    #     # (1, {"128.2.100.166", "128.2.100.167"})
-    #     (0, {hostMap["cacheServer"]})
-    # )
 
     session.execute(
         """
@@ -104,6 +64,57 @@ def initDirectory():
         );
         """
     )
+    # Set the logical mapping to the machine (physical volumes)
+    # If store a photo on a logical volume, Haystack should write to all corresponding
+    # physical volumns on different machines.
+    # TODO: Here the mids should changed to the production hosts of Store
+    session.execute(
+        """
+        INSERT INTO store (lvid, mid)
+        VALUES (%s, %s)
+        """,
+        # (0, { hostMap["cass1"], hostMap["cass2"], hostMap["cass3"] })
+        # (0, { hostMap["cass1"], hostMap["tempCass"] })
+        (0, { hostMap["cass1"]})
+    )
+
+    session.execute(
+        """
+        INSERT INTO store (lvid, mid)
+        VALUES (%s, %s)
+        """,
+        # (1, { hostMap["cass2"], hostMap["cass3"], hostMap["cass4"] })
+        # (1, { hostMap["cass1"], hostMap["tempCass"] })
+        (1, { hostMap["cass1"]})
+    )
+    # session.execute(
+    #     """
+    #     INSERT INTO store (lvid, mid)
+    #     VALUES (%s, %s)
+    #     """,
+    #     # (2, { hostMap["cass1"], hostMap["cass2"], hostMap["cass4"] })
+    #     (2, { hostMap["cass1"] })
+    # )
+    # session.execute(
+    #     """
+    #     INSERT INTO store (lvid, mid)
+    #     VALUES (%s, %s)
+    #     """,
+    #     # (3, { hostMap["cass1"], hostMap["cass3"], hostMap["cass4"] })
+    #     (3, { hostMap["cass1"] })
+    # )
+
+    # session.execute(
+    #     """
+    #     INSERT INTO store (lvid, mid)
+    #     VALUES (%s, %s)
+    #     """,
+    #     # (1, {"128.2.100.166", "128.2.100.167"})
+    #     (0, {hostMap["cacheServer"]})
+    # )
+
+
+
 
 if __name__ == "__main__":
     initDirectory()

@@ -7,16 +7,16 @@ from initDirectory import initDirectory
 
 initDirectory()
 hostMap = {
-            "dir1": "128.2.100.164",        # :9337
-            "dir2": "128.2.100.165",        # :9337
-            "dirRedis": "128.2.100.166",    # :6379
+            "dir1": "128.2.100.164",        # :9337 ghc31
+            "dir2": "128.2.100.165",        # :9337 ghc32
+            "dirRedis": "128.2.100.166",    # :6379 ghc33
 
-            "cacheServer": "128.2.100.173", # :8040
-            "cass1": "128.2.100.174",       # :9337
-            "cass2": "128.2.100.175",       # :9337
-            "cass3": "128.2.100.176",       # :9337
-            "cass4": "128.2.100.177",       # :9337
-            "storeRedis": "128.2.100.178"   # :6379
+            "cacheServer": "128.2.100.173", # :8040 ghc40
+            "cass1": "128.2.100.174",       # :9337 ghc41
+            "cass2": "128.2.100.175",       # :9337 ghc42
+            "cass3": "128.2.100.176",       # :9337 ghc43
+            "cass4": "128.2.100.177",       # :9337 ghc44
+            "storeRedis": "128.2.100.178"   # :6379 ghc45
             }
 app = Flask(__name__)
 # app.config['UPLOAD_FOLDER'] = 'uploads/'
@@ -24,7 +24,7 @@ cassDirectory = [ hostMap["dir1"], hostMap["dir2"] ]
 redisHost = hostMap["dirRedis"]
 cluster = Cluster(cassDirectory, port = 9337)
 dbSession = cluster.connect('directory')
-redisClient = Redis(host = tempHost, port = 6379)
+redisClient = Redis(host = redisHost, port = 6379)
 
 @app.route('/')
 def get_all_photos():
@@ -56,17 +56,19 @@ def post_photo():
     local_rows = [row for row in rows]
     row = random.choice(local_rows)
     lvid = row.lvid
+    print(lvid)
     # random choose a store machine of selected logical volume
     # TODO: Should write to every machine mapped to the same logical volume
     # mid = random.choice(row.mid)
     sendFile = { "photo": (file.filename, file.stream, file.mimetype) }
-    midList = set(row.mid)
+    # midList = {mid for mid in row.mid}
+    # print("The type of midList is : %s" % type(midList))
 
     # insert metadata of photo into Directory
     dbSession.execute(
-        "INSERT INTO photo (pid, mid, lvid) VALUES (%s, %s, %s)", (pid, midList, lvid))
+        "INSERT INTO photo (pid, mid, lvid) VALUES (%s, %s, %s)", (pid, row.mid, lvid))
 
-    for mid in midList:
+    for mid in row.mid:
         # upload to Store databases. Write to all machines that mapped by lvid
         data = ["photo", mid, str(lvid), pid]
         url = "http://" + hostMap["cacheServer"] + ":8040" + "/" + "/".join(data)
